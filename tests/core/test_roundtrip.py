@@ -26,8 +26,8 @@ def expected_chunk_count(plaintext_len: int) -> int:
     "plaintext",
     [
         b"",
-        b"x" * 173,  # ciphertext exactly 189 bytes -> 1 full chunk, no padding
-        b"x" * 362,  # ciphertext exactly 378 bytes -> 2 full chunks, no padding
+        b"x" * 1184,  # ciphertext exactly 1200 bytes -> 1 full chunk, no padding
+        b"x" * 2384,  # ciphertext exactly 2400 bytes -> 2 full chunks, no padding
         b"hello world, this is a deterministic ASCII test case",
         os.urandom(500),  # partial last chunk
         os.urandom(10_000),  # larger multi-chunk file
@@ -49,7 +49,7 @@ def test_roundtrip(plaintext):
 def _store_multi_chunk_blob():
     key = crypto.generate_key()
     store = ChunkStore()
-    plaintext = os.urandom(1000)
+    plaintext = os.urandom(3000)  # ciphertext 3016 bytes -> 3 chunks at CHUNK_SIZE=1200
     blob = store_plaintext(plaintext, key, store)
     assert len(blob.chunk_hashes) >= 2
     return plaintext, key, store, blob
