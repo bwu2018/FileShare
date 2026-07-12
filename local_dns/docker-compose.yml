@@ -1,0 +1,11 @@
+services:
+  bind9:
+    image: internetsystemsconsortium/bind9:9.18
+    container_name: dnsstore-bind9
+    ports:
+      - "127.0.0.1:15353:53/udp"
+      - "127.0.0.1:15353:53/tcp"
+    volumes:
+      - ./named.conf:/etc/bind/named.conf:ro
+      - ./zones:/etc/bind/zones:ro
+    restart: unless-stopped
