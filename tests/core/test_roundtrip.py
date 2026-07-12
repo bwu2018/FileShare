@@ -4,7 +4,6 @@ import os
 import pytest
 
 from core import (
-    ChunkHashMismatchError,
     ChunkNotFoundError,
     ChunkStore,
     DecryptionError,
@@ -13,8 +12,7 @@ from core import (
     store_plaintext,
 )
 from core.constants import CHUNK_SIZE
-from core.encoding import decode_chunk, encode_chunk
-from core.hashing import compute_chunk_hash
+from core.hashing import compute_chunk_address
 
 
 def expected_chunk_count(plaintext_len: int) -> int:
@@ -39,8 +37,8 @@ def test_roundtrip(plaintext):
 
     blob = store_plaintext(plaintext, key, store)
 
-    assert len(blob.chunk_hashes) == expected_chunk_count(len(plaintext))
-    assert len(store) == len(blob.chunk_hashes)
+    assert blob.chunk_count == expected_chunk_count(len(plaintext))
+    assert len(store) == blob.chunk_count
 
     result = load_plaintext(blob, key, store)
     assert result == plaintext
@@ -51,32 +49,17 @@ def _store_multi_chunk_blob():
     store = ChunkStore()
     plaintext = os.urandom(3000)  # ciphertext 3016 bytes -> 3 chunks at CHUNK_SIZE=1200
     blob = store_plaintext(plaintext, key, store)
-    assert len(blob.chunk_hashes) >= 2
+    assert blob.chunk_count >= 2
     return plaintext, key, store, blob
 
 
-def test_bitflip_stored_payload_raises_hash_mismatch():
+def test_bitflip_stored_chunk_raises_decryption_error():
     _plaintext, key, store, blob = _store_multi_chunk_blob()
-    target_hash = blob.chunk_hashes[0]
+    target_address = compute_chunk_address(blob.nonce, 0)
 
-    corrupted = list(store._data[target_hash])
+    corrupted = list(store._data[target_address])
     corrupted[0] = "A" if corrupted[0] != "A" else "B"
-    store._data[target_hash] = "".join(corrupted)
-
-    with pytest.raises(ChunkHashMismatchError):
-        load_plaintext(blob, key, store)
-
-
-def test_consistent_chunk_tamper_raises_decryption_error():
-    _plaintext, key, store, blob = _store_multi_chunk_blob()
-    target_hash = blob.chunk_hashes[0]
-
-    chunk = bytearray(decode_chunk(store.get(target_hash)))
-    chunk[0] ^= 0xFF
-    mutated_chunk = bytes(chunk)
-    new_hash = compute_chunk_hash(mutated_chunk)
-    store.put(new_hash, encode_chunk(mutated_chunk))
-    blob.chunk_hashes[0] = new_hash
+    store._data[target_address] = "".join(corrupted)
 
     with pytest.raises(DecryptionError):
         load_plaintext(blob, key, store)
@@ -84,7 +67,7 @@ def test_consistent_chunk_tamper_raises_decryption_error():
 
 def test_missing_chunk_raises_not_found():
     _plaintext, key, store, blob = _store_multi_chunk_blob()
-    del store._data[blob.chunk_hashes[0]]
+    del store._data[compute_chunk_address(blob.nonce, 0)]
 
     with pytest.raises(ChunkNotFoundError):
         load_plaintext(blob, key, store)
@@ -100,10 +83,9 @@ def test_wrong_key_raises_decryption_error():
 
 def test_reordered_chunks_raises_decryption_error():
     _plaintext, key, store, blob = _store_multi_chunk_blob()
-    blob.chunk_hashes[0], blob.chunk_hashes[1] = (
-        blob.chunk_hashes[1],
-        blob.chunk_hashes[0],
-    )
+    addr0 = compute_chunk_address(blob.nonce, 0)
+    addr1 = compute_chunk_address(blob.nonce, 1)
+    store._data[addr0], store._data[addr1] = store._data[addr1], store._data[addr0]
 
     with pytest.raises(DecryptionError):
         load_plaintext(blob, key, store)
