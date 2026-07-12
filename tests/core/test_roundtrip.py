@@ -1,0 +1,133 @@
+import math
+import os
+
+import pytest
+
+from core import (
+    ChunkHashMismatchError,
+    ChunkNotFoundError,
+    ChunkStore,
+    DecryptionError,
+    crypto,
+    load_plaintext,
+    store_plaintext,
+)
+from core.constants import CHUNK_SIZE
+from core.encoding import decode_chunk, encode_chunk
+from core.hashing import compute_chunk_hash
+
+
+def expected_chunk_count(plaintext_len: int) -> int:
+    ciphertext_len = plaintext_len + 16  # AES-GCM tag overhead
+    return math.ceil(ciphertext_len / CHUNK_SIZE)
+
+
+@pytest.mark.parametrize(
+    "plaintext",
+    [
+        b"",
+        b"x" * 173,  # ciphertext exactly 189 bytes -> 1 full chunk, no padding
+        b"x" * 362,  # ciphertext exactly 378 bytes -> 2 full chunks, no padding
+        b"hello world, this is a deterministic ASCII test case",
+        os.urandom(500),  # partial last chunk
+        os.urandom(10_000),  # larger multi-chunk file
+    ],
+)
+def test_roundtrip(plaintext):
+    key = crypto.generate_key()
+    store = ChunkStore()
+
+    blob = store_plaintext(plaintext, key, store)
+
+    assert len(blob.chunk_hashes) == expected_chunk_count(len(plaintext))
+    assert len(store) == len(blob.chunk_hashes)
+
+    result = load_plaintext(blob, key, store)
+    assert result == plaintext
+
+
+def _store_multi_chunk_blob():
+    key = crypto.generate_key()
+    store = ChunkStore()
+    plaintext = os.urandom(1000)
+    blob = store_plaintext(plaintext, key, store)
+    assert len(blob.chunk_hashes) >= 2
+    return plaintext, key, store, blob
+
+
+def test_bitflip_stored_payload_raises_hash_mismatch():
+    _plaintext, key, store, blob = _store_multi_chunk_blob()
+    target_hash = blob.chunk_hashes[0]
+
+    corrupted = list(store._data[target_hash])
+    corrupted[0] = "A" if corrupted[0] != "A" else "B"
+    store._data[target_hash] = "".join(corrupted)
+
+    with pytest.raises(ChunkHashMismatchError):
+        load_plaintext(blob, key, store)
+
+
+def test_consistent_chunk_tamper_raises_decryption_error():
+    _plaintext, key, store, blob = _store_multi_chunk_blob()
+    target_hash = blob.chunk_hashes[0]
+
+    chunk = bytearray(decode_chunk(store.get(target_hash)))
+    chunk[0] ^= 0xFF
+    mutated_chunk = bytes(chunk)
+    new_hash = compute_chunk_hash(mutated_chunk)
+    store.put(new_hash, encode_chunk(mutated_chunk))
+    blob.chunk_hashes[0] = new_hash
+
+    with pytest.raises(DecryptionError):
+        load_plaintext(blob, key, store)
+
+
+def test_missing_chunk_raises_not_found():
+    _plaintext, key, store, blob = _store_multi_chunk_blob()
+    del store._data[blob.chunk_hashes[0]]
+
+    with pytest.raises(ChunkNotFoundError):
+        load_plaintext(blob, key, store)
+
+
+def test_wrong_key_raises_decryption_error():
+    _plaintext, _key, store, blob = _store_multi_chunk_blob()
+    wrong_key = crypto.generate_key()
+
+    with pytest.raises(DecryptionError):
+        load_plaintext(blob, wrong_key, store)
+
+
+def test_reordered_chunks_raises_decryption_error():
+    _plaintext, key, store, blob = _store_multi_chunk_blob()
+    blob.chunk_hashes[0], blob.chunk_hashes[1] = (
+        blob.chunk_hashes[1],
+        blob.chunk_hashes[0],
+    )
+
+    with pytest.raises(DecryptionError):
+        load_plaintext(blob, key, store)
+
+
+def test_crypto_roundtrip():
+    key = crypto.generate_key()
+    plaintext = b"some plaintext data"
+    nonce, ciphertext = crypto.encrypt(key, plaintext)
+    assert crypto.decrypt(key, nonce, ciphertext) == plaintext
+
+
+def test_crypto_tampered_ciphertext_raises_decryption_error():
+    key = crypto.generate_key()
+    nonce, ciphertext = crypto.encrypt(key, b"some plaintext data")
+    tampered = bytearray(ciphertext)
+    tampered[0] ^= 0xFF
+
+    with pytest.raises(DecryptionError):
+        crypto.decrypt(key, nonce, bytes(tampered))
+
+
+def test_crypto_nonce_uniqueness():
+    key = crypto.generate_key()
+    nonce1, _ = crypto.encrypt(key, b"same plaintext")
+    nonce2, _ = crypto.encrypt(key, b"same plaintext")
+    assert nonce1 != nonce2
