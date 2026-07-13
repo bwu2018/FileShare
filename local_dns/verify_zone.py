@@ -24,8 +24,7 @@ from core.constants import CHUNK_SIZE
 from core.exceptions import ChunkNotFoundError
 from core.store import ChunkStore
 from manifest import create_manifest, resolve_manifest
-from manifest.constants import MAX_HASHES_PER_NODE
-from zonegen import ZoneConfig, generate_zone_file, unpack_txt_strings
+from zonegen import build_zone, generate_zone_file, unpack_txt_strings
 
 ORIGIN = "dnsstore.test."
 RESOLVER_IP = "127.0.0.1"
@@ -37,9 +36,9 @@ class DnsChunkStore:
     """Read-only ChunkStore-compatible adapter backed by a live DNS server.
 
     Only implements get() -- that's all core.pipeline.load_plaintext /
-    manifest.resolve_manifest need to walk the manifest -> index tree -> content chunks
-    entirely through DNS-served records, proving the full stack survives real wire
-    transport, not just the raw TXT-record layer in isolation.
+    manifest.resolve_manifest need to walk the manifest -> content chunks entirely
+    through DNS-served records, proving the full stack survives real wire transport,
+    not just the raw TXT-record layer in isolation.
     """
 
     def get(self, chunk_hash: str) -> str:
@@ -57,16 +56,17 @@ class DnsChunkStore:
 
 
 def build_test_store() -> tuple[ChunkStore, str, bytes]:
-    """Deliberately >MAX_HASHES_PER_NODE (146) content chunks, so build_index_tree emits
-    a real is_leaf=False root over a near-max-size leaf IndexNode (~8181 raw bytes / ~43
-    TXT strings) -- exercising the large-record/TCP-fallback path phase2.md flagged as
-    unvalidated, not just small single-string content-chunk records.
+    """A few small content chunks, plus a deliberately long file_name -- since chunk
+    addressing dropped the index tree (hash(nonce+i) addressing), file_name is now the
+    only field that can still force a large, multi-string TXT record. Stays safely
+    under manifest/serialization.py's 65,535-byte UTF-8 cap on file_name, exercising
+    the large-record/TCP-fallback path without tripping ManifestFormatError.
     """
     store = ChunkStore()
     key = crypto.generate_key()
-    # 147 full-size content chunks: ciphertext = plaintext + 16-byte AEAD tag
-    plaintext = os.urandom(147 * CHUNK_SIZE - 16)
-    pointer_hash = create_manifest(plaintext, key, "verify.bin", store)
+    plaintext = os.urandom(3 * CHUNK_SIZE - 16)
+    long_file_name = "x" * 60_000
+    pointer_hash = create_manifest(plaintext, key, long_file_name, store)
     return store, pointer_hash, key, plaintext
 
 
@@ -77,13 +77,14 @@ def check_udp_truncation(qname: str) -> bool:
 
 
 def main() -> None:
-    print("Building in-memory store (147 content chunks, forces real index-tree recursion)...")
+    print("Building in-memory store (a few content chunks + one long-file_name manifest, "
+          "forces a large manifest TXT record)...")
     store, pointer_hash, key, plaintext = build_test_store()
-    print(f"  {len(store)} total ChunkStore entries (content chunks + index nodes + manifest)")
+    print(f"  {len(store)} total ChunkStore entries (content chunks + manifest)")
     print(f"  manifest pointer hash: {pointer_hash}")
 
-    config = ZoneConfig(origin=ORIGIN, serial=int(time.time()))
-    ZONE_FILE_PATH.write_text(generate_zone_file(store, config))
+    zone = build_zone(origin=ORIGIN, serial=int(time.time()))
+    ZONE_FILE_PATH.write_text(generate_zone_file(store, zone))
     print(f"Wrote {ZONE_FILE_PATH} ({len(store)} records).")
     print()
     compose_cmd = ["docker", "compose", "-f", "local_dns/docker-compose.yml"]
@@ -102,14 +103,14 @@ def main() -> None:
     assert fetched == store.get(content_hash), "content-chunk payload mismatch over DNS"
     print(f"V3 OK: content-chunk record {content_hash[:16]}... round-tripped over DNS")
 
-    # V4: large index-node record -- UDP truncation + TCP fallback
+    # V4: large manifest record (long file_name) -- UDP truncation + TCP fallback
     large_hash = max(store.items(), key=lambda kv: len(kv[1]))[0]
     qname = f"{large_hash}.chunks.{ORIGIN}"
     truncated = check_udp_truncation(qname)
     print(f"V4: large record ({len(store.get(large_hash))} base64 chars) UDP truncated = {truncated}")
     fetched_large = dns_store.get(large_hash)
     assert fetched_large == store.get(large_hash), "large-record payload mismatch over DNS"
-    print("V4 OK: large index-node record round-tripped over DNS (TCP fallback if needed)")
+    print("V4 OK: large manifest record (long file_name) round-tripped over DNS (TCP fallback if needed)")
 
     # V5: full-stack resolve, starting only from the pointer hash + key, entirely via DNS
     resolved = resolve_manifest(pointer_hash, key, dns_store)

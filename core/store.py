@@ -1,3 +1,5 @@
+from collections.abc import Iterator
+
 from .exceptions import ChunkNotFoundError
 
 
@@ -19,3 +21,6 @@ class ChunkStore:
 
     def __len__(self) -> int:
         return len(self._data)
+
+    def items(self) -> Iterator[tuple[str, str]]:
+        return iter(self._data.items())

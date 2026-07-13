@@ -40,16 +40,18 @@ reload configured (`rndc` isn't set up), so always `restart bind9` after regener
 .venv/bin/python local_dns/verify_zone.py
 ```
 
-This builds an in-memory store with 147 content chunks (deliberately over
-`MAX_HASHES_PER_NODE=146`), which forces `build_index_tree` to emit a real recursive
-index tree with at least one near-max-size (~8181 raw byte / ~43 TXT-string) record —
-exactly the case `phase2.md` flagged as needing real-world validation. It writes
-`zones/dnsstore.test.zone`, then pauses for you to restart BIND, then runs three checks
-against the live server:
+This builds an in-memory store with a few small content chunks plus one manifest
+record with a deliberately long `file_name` (up to the 65,535-byte UTF-8 cap
+`manifest/serialization.py` enforces), producing at least one large, multi-string TXT
+record — since removing the index tree (chunk addressing moved to `hash(nonce+i)`,
+see `CLAUDE.md`'s addressing revision) left `file_name` as the only field that can
+still force a large record. It writes `zones/dnsstore.test.zone`, then pauses for you
+to restart BIND, then runs three checks against the live server:
 
 - **V3** — a small content-chunk record round-trips correctly over DNS.
-- **V4** — the large index-node record round-trips correctly, and reports whether the
-  initial UDP query came back truncated (`TC` flag) before falling back to TCP.
+- **V4** — the large manifest record (long `file_name`) round-trips correctly, and
+  reports whether the initial UDP query came back truncated (`TC` flag) before
+  falling back to TCP.
 - **V5** — a full end-to-end resolve, starting only from the manifest pointer hash and
   key, reconstructs the exact original plaintext using only DNS-served records (no
   reads from the in-memory `ChunkStore` at all).
