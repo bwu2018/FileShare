@@ -4,7 +4,7 @@ import dns.rdatatype
 import dns.rdtypes.ANY.TXT
 import dns.rrset
 
-from .constants import CHUNKS_LABEL, RECORD_TTL
+from .constants import CHUNKS_LABEL, MAX_TXT_RDATA_SIZE, RECORD_TTL
 from .exceptions import ZoneGenerationError
 from .txt_packing import pack_txt_strings
 
@@ -18,5 +18,13 @@ def format_txt_record(chunk_hash: str, encoded_chunk: str, origin: str) -> dns.r
     except (dns.name.LabelTooLong, dns.name.NameTooLong) as e:
         raise ZoneGenerationError(f"invalid name {owner}.{origin}: {e}") from e
 
-    txt_rdata = dns.rdtypes.ANY.TXT.TXT(dns.rdataclass.IN, dns.rdatatype.TXT, pack_txt_strings(encoded_chunk))
+    strings = pack_txt_strings(encoded_chunk)
+    wire_size = sum(1 + len(s) for s in strings)
+    if wire_size > MAX_TXT_RDATA_SIZE:
+        raise ZoneGenerationError(
+            f"TXT record for {owner}.{origin} has {wire_size}-byte RDATA, "
+            f"exceeds the {MAX_TXT_RDATA_SIZE}-byte DNS protocol maximum"
+        )
+
+    txt_rdata = dns.rdtypes.ANY.TXT.TXT(dns.rdataclass.IN, dns.rdatatype.TXT, strings)
     return dns.rrset.from_rdata(owner_name, RECORD_TTL, txt_rdata)

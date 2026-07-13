@@ -35,6 +35,26 @@ def test_oversized_fqdn_raises():
         format_txt_record("HASHVALUE", "payload", long_origin)
 
 
+def test_oversized_rdata_raises():
+    # Each packed string costs 256 wire bytes (1-byte length prefix + 255 payload bytes),
+    # so 257 full-length strings (65,792 wire bytes) safely exceeds the 65,535-byte cap.
+    payload = "A" * (257 * 255)
+
+    with pytest.raises(ZoneGenerationError):
+        format_txt_record("HASHVALUE", payload, ORIGIN)
+
+
+def test_large_payload_under_max_does_not_raise():
+    # 255 full-length strings -> 255 * 256 = 65,280 wire bytes, safely under the
+    # 65,535-byte cap -- confirms the check doesn't false-positive on large-but-valid
+    # payloads (e.g. a long manifest file_name), only genuinely oversized ones.
+    payload = "A" * (255 * 255)
+
+    rrset = format_txt_record("HASHVALUE", payload, ORIGIN)
+
+    assert len(rrset[0].strings) == 255
+
+
 def test_no_backslash_in_generated_text():
     rrset = format_txt_record("HASHVALUE", "some+payload/with=chars", ORIGIN)
 
