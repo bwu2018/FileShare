@@ -1,0 +1,8 @@
+{
+  "name": "dnsfileshare-webapp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

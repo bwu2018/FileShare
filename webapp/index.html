@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>dnsfileshare downloader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <h1>dnsfileshare downloader</h1>
+    <p class="subtitle">
+      Paste a pointer hash and key to fetch and decrypt a file directly from DNS. Your
+      browser queries public DNS resolvers and decrypts locally -- nothing is sent to
+      any server of ours, and no server of ours ever sees the key or the file.
+    </p>
+
+    <form id="download-form">
+      <label for="pointer-hash">Pointer hash</label>
+      <input id="pointer-hash" name="pointer-hash" type="text" autocomplete="off" spellcheck="false" required>
+
+      <label for="key">Key (base64)</label>
+      <input id="key" name="key" type="text" autocomplete="off" spellcheck="false" required>
+
+      <button type="submit">Download</button>
+    </form>
+
+    <div id="result"></div>
+  </main>
+  <script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1a1a1a;
+  --bg: #ffffff;
+  --muted: #666666;
+  --border: #cccccc;
+  --accent: #2563eb;
+  --error: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e5e5e5;
+    --bg: #121212;
+    --muted: #999999;
+    --border: #444444;
+    --accent: #60a5fa;
+    --error: #f87171;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  margin: 0;
+  padding: 2rem 1rem;
+}
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 1.5rem 0;
+}
+
+label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.4rem;
+}
+
+input {
+  padding: 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+button {
+  padding: 0.6rem;
+  border: none;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-top: 0.75rem;
+}
+
+button:hover {
+  filter: brightness(1.05);
+}
+
+#result {
+  margin-top: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.status {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--error);
+}
+
+.preview-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+  max-height: 60vh;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 60vh;
+  border-radius: 4px;
+  display: block;
+}
+
+.preview-unsupported {
+  color: var(--muted);
+}
+
+.download-button {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.download-button:hover {
+  background: var(--accent);
+  color: #ffffff;
+}

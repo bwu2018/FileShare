@@ -1,0 +1,95 @@
+{
+  "base32": [
+    {
+      "input_b64": "",
+      "expected_b32": ""
+    },
+    {
+      "input_b64": "Zg==",
+      "expected_b32": "MY======"
+    },
+    {
+      "input_b64": "Zm8=",
+      "expected_b32": "MZXQ===="
+    },
+    {
+      "input_b64": "Zm9v",
+      "expected_b32": "MZXW6==="
+    },
+    {
+      "input_b64": "Zm9vYg==",
+      "expected_b32": "MZXW6YQ="
+    },
+    {
+      "input_b64": "Zm9vYmE=",
+      "expected_b32": "MZXW6YTB"
+    },
+    {
+      "input_b64": "Zm9vYmFy",
+      "expected_b32": "MZXW6YTBOI======"
+    },
+    {
+      "input_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "expected_b32": "AAAQEAYEAUDAOCAJBIFQYDIOB4IBCEQTCQKRMFYYDENBWHA5DYPQ===="
+    }
+  ],
+  "chunk_address": {
+    "nonce_b64": "AAECAwQFBgcICQoL",
+    "cases": [
+      {
+        "index": 0,
+        "expected_address": "CVWHKUZLPDHSMANMVDAQLTBGQFT624DWPAAUQYHQG4DSMLK2K5SA===="
+      },
+      {
+        "index": 1,
+        "expected_address": "PQFK3VLVC5XTUOP436EHPR7IUCYVWGJDJQXZRGCUNDEPIXYI3W7A===="
+      },
+      {
+        "index": 255,
+        "expected_address": "DOCJSBD4XKCYZCMXPCH2S2EFLZSGIW3E4GBYPKSEAXS6Q533LPLA===="
+      },
+      {
+        "index": 256,
+        "expected_address": "4RZZ5S2RL544PHR2ECYU6FK7I2ZAIPTUIUCHDJTZXJ2IXJ6MRKIA===="
+      },
+      {
+        "index": 65535,
+        "expected_address": "URIKGSEUQ2Y6URO7L46RRRH7O62DQESR7LJ2W3YFOPBVX2CDBDEQ===="
+      },
+      {
+        "index": 65536,
+        "expected_address": "G5KIMJ5TJAUWE72KOGGBA5OBL4NPYA7DCOVMJVX2QCQYT57AV67A===="
+      }
+    ]
+  },
+  "chunk_hash": {
+    "input_b64": "dGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZ3RoZSBxdWljayBicm93biBmb3gganVtcHMgb3ZlciB0aGUgbGF6eSBkb2d0aGUgcXVpY2sgYnJvd24gZm94IGp1bXBzIG92ZXIgdGhlIGxhenkgZG9n",
+    "expected_hash": "JWZ73ZIJ37W2GEHE7OAH4JBYECUWKG7TLLEPGF2YA5JE2G4Q6JUA===="
+  },
+  "manifest": [
+    {
+      "version": 1,
+      "file_name": "small.txt",
+      "file_size": 50,
+      "chunk_count": 1,
+      "content_nonce_b64": "AAECAwQFBgcICQoL",
+      "serialized_b64": "AQAAAAAAAAAyAAAAAQABAgMEBQYHCAkKCwAJc21hbGwudHh0"
+    },
+    {
+      "version": 1,
+      "file_name": "résumé 文件.png",
+      "file_size": 123456789,
+      "chunk_count": 103,
+      "content_nonce_b64": "DA0ODxAREhMUFRYX",
+      "serialized_b64": "AQAAAAAHW80VAAAAZwwNDg8QERITFBUWFwATcsOpc3Vtw6kg5paH5Lu2LnBuZw=="
+    },
+    {
+      "version": 1,
+      "file_name": "",
+      "file_size": 0,
+      "chunk_count": 1,
+      "content_nonce_b64": "AAAAAAAAAAAAAAAA",
+      "serialized_b64": "AQAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAA"
+    }
+  ]
+}

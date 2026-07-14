@@ -2,9 +2,8 @@
 
 Publishes real files to a real, internet-facing authoritative BIND nameserver via RFC
 2136 dynamic DNS updates, and provides the one-time VPS/zone bootstrap this depends on.
-See `.claude/plans/serene-napping-brook.md` for the full design rationale, including two
-real bugs found and fixed while first standing this up against actual infrastructure
-(both already reflected in the templates/code below, not just the plan doc).
+Two real bugs found while first standing this up against actual infrastructure are
+already reflected in the templates/code below.
 
 ## Prerequisites
 
@@ -63,8 +62,7 @@ real bugs found and fixed while first standing this up against actual infrastruc
    bootstrap` actually SSHes in as (`DeployConfig`'s default `ssh_user` is `"deploy"`);
    don't run it as your main admin account. Least-privilege reasoning: the automated
    tooling only ever needs to write into `/var/lib/bind/` and restart BIND, not full
-   root — see `.claude/plans/serene-napping-brook.md`'s "why a deploy user" note for
-   the full rationale.
+   root.
    ```
    sudo adduser --disabled-password --gecos "" deploy
    sudo mkdir -p /home/deploy/.ssh

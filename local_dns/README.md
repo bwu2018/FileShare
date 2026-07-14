@@ -90,8 +90,8 @@ bootstrap`), then:
   correctness property this whole design depends on.
 - **V-DU4** — confirms a wrong TSIG secret is rejected, not silently accepted.
 
-**Two real, Docker-specific gotchas fixed while building this** (beyond the real-VPS
-bugs already documented in `.claude/plans/serene-napping-brook.md`):
+**Two real, Docker-specific gotchas fixed while building this** (beyond the separate
+real-VPS bugs found during deployment):
 - `docker-compose.yml`'s `zones/` volume was originally mounted `:ro` — BIND needs write
   access there to create a `.jnl` journal file for dynamic updates, the same class of
   problem as the AppArmor issue found on the real VPS, just a different mechanism
