@@ -62,6 +62,51 @@ to restart BIND, then runs four checks against the live server:
   works end-to-end against the real fixture, and also confirms the reconstructed
   `file_name` matches, which V5 doesn't check.
 
+## Running the dynamic-update (RFC 2136) verification driver
+
+```
+.venv/bin/python -m local_dns.verify_dynamic_update
+```
+
+**Run as a module (`-m local_dns.verify_dynamic_update`), not as a plain script path**
+(`python local_dns/verify_dynamic_update.py`) — the latter fails with `ModuleNotFoundError:
+No module named 'core'`, since Python adds the *script's own directory* to `sys.path`,
+not the current working directory. `-m` adds the cwd instead, which is what makes `core`/
+`manifest`/`deploy`/etc. importable. (This applies to `verify_zone.py` too, even though
+this README previously showed the plain-script form.)
+
+This validates `deploy/dynamic_update.py`/`deploy/publish.py` (RFC 2136 + TSIG dynamic
+updates) locally before depending on them against real infrastructure — the zone's TSIG
+key (`update-key`) is a fixed, local-only test secret baked into `named.conf`, never used
+against anything real. It writes a header-only zone (the local equivalent of `deploy.cli
+bootstrap`), then:
+
+- **V-DU1** — publishes a real file via `deploy.dynamic_update.send_update`, no
+  reload/restart needed at all (dynamic updates apply live).
+- **V-DU2** — confirms it's actually resolvable via `download_from_dns()`, not just
+  "accepted."
+- **V-DU3** — publishes a *second* file and confirms the *first* one still resolves
+  correctly — the direct test of RFC 2136 accumulation (not clobbering), the actual
+  correctness property this whole design depends on.
+- **V-DU4** — confirms a wrong TSIG secret is rejected, not silently accepted.
+
+**Two real, Docker-specific gotchas fixed while building this** (beyond the real-VPS
+bugs already documented in `.claude/plans/serene-napping-brook.md`):
+- `docker-compose.yml`'s `zones/` volume was originally mounted `:ro` — BIND needs write
+  access there to create a `.jnl` journal file for dynamic updates, the same class of
+  problem as the AppArmor issue found on the real VPS, just a different mechanism
+  (Docker bind-mount permissions here, not AppArmor).
+- The container's internal `named` process runs as UID 53 (hardcoded by the image's own
+  entrypoint, unaffected by Docker's `user:` directive), while the host-side `zones/`
+  directory is owned by the host user's UID — `chmod o+w local_dns/zones/` is the
+  pragmatic fix, acceptable since this fixture is loopback-only and never networked.
+- The script deletes any pre-existing `.jnl` journal file before writing a fresh zone
+  file each run — a stale journal from a previous run doesn't match a freshly-rewritten
+  zone file (different serial/content), which BIND correctly rejects new updates
+  against (confirmed live: `SERVFAIL` on the very next update attempt otherwise). A real
+  first-time bootstrap never has a pre-existing journal either, so this isn't
+  papering over anything specific to the fixture.
+
 ## Manual `dig` invocations
 
 `dig` isn't installed on the host; the BIND container image ships with it already:
@@ -86,11 +131,15 @@ Optional host-side convenience (needs `sudo apt install -y dnsutils`):
 dig @127.0.0.1 -p 15353 <hash>.chunks.dnsstore.test TXT +short
 ```
 
-## Checklist (V1-V7)
+## Checklist (V1-V7, plus V-DU1-V-DU4 for dynamic updates)
 
 1. **V1.** `docker compose -f local_dns/docker-compose.yml up -d`; confirm the zone loads
    cleanly via `logs bind9` (no error lines).
-2. **V2.** Run `local_dns/verify_zone.py`; restart BIND when prompted.
+2. **V2.** Run `.venv/bin/python -m local_dns.verify_zone` (module form, not the plain
+   script path — see above); restart BIND when prompted.
 3. **V3-V6.** Handled automatically by `verify_zone.py` (see above).
-4. **V7.** `docker compose -f local_dns/docker-compose.yml down` (or `restart bind9` to
+4. **V-DU1-V-DU4.** Run `.venv/bin/python -m local_dns.verify_dynamic_update` — handled
+   automatically (see "Running the dynamic-update (RFC 2136) verification driver"
+   above).
+5. **V7.** `docker compose -f local_dns/docker-compose.yml down` (or `restart bind9` to
    iterate again with a freshly regenerated zone).

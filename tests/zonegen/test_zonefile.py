@@ -11,10 +11,10 @@ from zonegen.zonefile import build_zone, generate_zone_file
 ORIGIN = "dnsstore.test."
 
 
-def _zone(serial: int = 2026071201) -> dns.zone.Zone:
+def _zone(serial: int = 2026071201, ns_ip: str = "127.0.0.1") -> dns.zone.Zone:
     # dns.zone.Zone is mutable and generate_zone_file() adds records into it in
     # place, so every test needs its own fresh instance -- never share one across tests.
-    return build_zone(origin=ORIGIN, serial=serial)
+    return build_zone(origin=ORIGIN, serial=serial, ns_ip=ns_ip)
 
 
 HEADER_LINE_COUNT = 4  # $ORIGIN, SOA, NS, glue A
@@ -90,6 +90,13 @@ def test_generated_zone_parses_as_valid_bind_zone_syntax():
         rdataset = node.find_rdataset(dns.rdataclass.IN, dns.rdatatype.TXT)
         strings = [s.decode("ascii") for s in rdataset[0].strings]
         assert unpack_txt_strings(strings) == expected_payload
+
+
+def test_custom_ns_ip_is_honored():
+    zone_text = generate_zone_file(ChunkStore(), _zone(serial=1, ns_ip="203.0.113.10"))
+
+    assert "ns1 604800 IN A 203.0.113.10" in zone_text
+    assert "127.0.0.1" not in zone_text
 
 
 def test_differing_serial_only_changes_serial_line():

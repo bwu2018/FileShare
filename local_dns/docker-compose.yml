@@ -7,5 +7,5 @@ services:
       - "127.0.0.1:15353:53/tcp"
     volumes:
       - ./named.conf:/etc/bind/named.conf:ro
-      - ./zones:/etc/bind/zones:ro
+      - ./zones:/etc/bind/zones
     restart: unless-stopped

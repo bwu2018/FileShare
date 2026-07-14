@@ -1,0 +1,6 @@
+zone "<YOUR_DOMAIN>" {
+    type master;
+    file "/var/lib/bind/<YOUR_DOMAIN>.zone";
+    allow-update { key update-key; };
+    allow-transfer { none; };
+};

@@ -40,6 +40,7 @@ def build_zone(
     retry: int = DEFAULT_RETRY,
     expire: int = DEFAULT_EXPIRE,
     minimum: int = DEFAULT_MINIMUM,
+    ns_ip: str = "127.0.0.1",
 ) -> dns.zone.Zone:
     origin_name = dns.name.from_text(origin)
     zone = dns.zone.Zone(origin=origin_name)
@@ -61,7 +62,7 @@ def build_zone(
         minimum,
     )
     ns_rdata = dns.rdtypes.ANY.NS.NS(dns.rdataclass.IN, dns.rdatatype.NS, mname)
-    a_rdata = dns.rdtypes.IN.A.A(dns.rdataclass.IN, dns.rdatatype.A, "127.0.0.1")
+    a_rdata = dns.rdtypes.IN.A.A(dns.rdataclass.IN, dns.rdatatype.A, ns_ip)
 
     _add_rrset(zone, dns.rrset.from_rdata(root_name, RECORD_TTL, soa_rdata))
     _add_rrset(zone, dns.rrset.from_rdata(root_name, RECORD_TTL, ns_rdata))

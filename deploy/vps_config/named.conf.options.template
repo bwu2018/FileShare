@@ -1,0 +1,17 @@
+options {
+    directory "/var/cache/bind";
+    listen-on port 53 { any; };
+    listen-on-v6 { none; };
+    allow-query { any; };
+    allow-transfer { none; };
+    recursion no;
+    dnssec-validation no;
+    version none;
+    hostname none;
+    rate-limit {
+        responses-per-second 15;
+        window 5;
+    };
+};
+
+include "/etc/bind/update.key";
