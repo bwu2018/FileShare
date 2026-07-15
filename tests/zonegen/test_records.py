@@ -1,6 +1,7 @@
 import dns.rdatatype
 import pytest
 
+from zonegen.constants import RECORD_TTL
 from zonegen.exceptions import ZoneGenerationError
 from zonegen.records import format_txt_record
 
@@ -12,7 +13,7 @@ def test_single_string_payload_record():
 
     assert str(rrset.name) == "HASHVALUE.chunks.dnsstore.test."
     assert rrset.rdtype == dns.rdatatype.TXT
-    assert rrset.ttl == 604800
+    assert rrset.ttl == RECORD_TTL
     assert rrset[0].strings == (b"short-payload",)
 
 

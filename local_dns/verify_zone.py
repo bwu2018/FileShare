@@ -69,7 +69,16 @@ def main() -> None:
     print(f"  manifest pointer hash: {pointer_hash}")
 
     zone = build_zone(origin=ORIGIN, serial=int(time.time()))
+    # Unlink first, don't just overwrite: BIND (running as its own uid inside the
+    # container) can leave this file owned by itself (e.g. via a prior restart's
+    # journal-to-zonefile sync), which makes a plain write_text() fail with
+    # PermissionError -- deleting it (allowed by the directory's write permission,
+    # even when the file itself isn't writable by us) and writing fresh sidesteps that.
+    ZONE_FILE_PATH.unlink(missing_ok=True)
     ZONE_FILE_PATH.write_text(generate_zone_file(store, zone))
+    # World-writable so BIND's own later journal-sync writes don't hit the same
+    # problem in reverse (this file is host-owned again now, not BIND's uid).
+    ZONE_FILE_PATH.chmod(0o666)
     print(f"Wrote {ZONE_FILE_PATH} ({len(store)} records).")
     print()
     compose_cmd = ["docker", "compose", "-f", "local_dns/docker-compose.yml"]

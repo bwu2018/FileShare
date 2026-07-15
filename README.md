@@ -108,9 +108,9 @@ cd webapp && node --test     # webapp's pure-function JS tests
 ## Future plans
 
 - Automated end-to-end tests against the live deployment (currently just a manual
-  checklist).
-- Per-file DNS zones for scaling.
-- A cache-warming client.
-- A local key record for the publisher to track what they've published.
-- Video preview in the webapp.
+  checklist)
+- Per-file DNS zones for scaling
+- A cache-warming client
+- A local key record for the publisher to track what they've published
+- Video preview in the webapp
 - Oauth

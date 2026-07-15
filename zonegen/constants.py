@@ -7,7 +7,9 @@ MAX_TXT_RDATA_SIZE = 65535
 
 CHUNKS_LABEL = "chunks"  # owner name suffix: "<hash>.chunks"
 
-RECORD_TTL = 604800  # 1 week; content is immutable (content-addressed), long TTL is safe
+RECORD_TTL = 86400  # 1 day; resolvers commonly cap effective retention around here regardless
+                    # of what's advertised, and a shorter TTL also shrinks the residual-cache
+                    # window for records that get deleted (see deploy/delete.py).
 
 DEFAULT_NS_LABEL = "ns1"
 DEFAULT_ADMIN_LABEL = "admin"

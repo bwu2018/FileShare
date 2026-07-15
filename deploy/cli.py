@@ -6,6 +6,7 @@ from downloader.pipeline import download_from_dns
 
 from .bootstrap import bootstrap_zone
 from .config import DeployConfig
+from .delete import delete_file
 from .publish import publish_file
 
 
@@ -25,6 +26,14 @@ def _cmd_publish(args: argparse.Namespace) -> None:
     print(f"pointer_hash: {pointer_hash}")
     print(f"key (base64): {base64.b64encode(key).decode('ascii')}")
     print("save this now -- nothing else stores it")
+
+
+def _cmd_delete(args: argparse.Namespace) -> None:
+    config = DeployConfig.from_env()
+    key = base64.b64decode(args.key)
+
+    count = delete_file(args.pointer_hash, key, config)
+    print(f"deleted {count} records")
 
 
 def _cmd_verify(args: argparse.Namespace) -> None:
@@ -52,6 +61,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser.add_argument("key")
     verify_parser.add_argument("--resolver-ip", default=None)
     verify_parser.set_defaults(func=_cmd_verify)
+
+    delete_parser = subparsers.add_parser("delete")
+    delete_parser.add_argument("pointer_hash")
+    delete_parser.add_argument("key")
+    delete_parser.set_defaults(func=_cmd_delete)
 
     return parser
 

@@ -5,6 +5,7 @@ import dns.rdatatype
 import dns.zone
 
 from core import ChunkStore
+from zonegen.constants import RECORD_TTL
 from zonegen.txt_packing import unpack_txt_strings
 from zonegen.zonefile import build_zone, generate_zone_file
 
@@ -70,11 +71,11 @@ def test_header_contains_configured_fields():
     assert "2026071201" in zone_text
     assert "3600" in zone_text
     assert "900" in zone_text
-    assert "604800" in zone_text
+    assert str(RECORD_TTL) in zone_text
     assert "IN SOA ns1 admin" in zone_text
     assert "IN NS ns1" in zone_text
-    assert "@ 604800 IN A 127.0.0.1" in zone_text
-    assert "ns1 604800 IN A 127.0.0.1" in zone_text
+    assert f"@ {RECORD_TTL} IN A 127.0.0.1" in zone_text
+    assert f"ns1 {RECORD_TTL} IN A 127.0.0.1" in zone_text
 
 
 def test_generated_zone_parses_as_valid_bind_zone_syntax():
@@ -96,8 +97,8 @@ def test_generated_zone_parses_as_valid_bind_zone_syntax():
 def test_custom_ns_ip_is_honored():
     zone_text = generate_zone_file(ChunkStore(), _zone(serial=1, ns_ip="203.0.113.10"))
 
-    assert "ns1 604800 IN A 203.0.113.10" in zone_text
-    assert "@ 604800 IN A 203.0.113.10" in zone_text
+    assert f"ns1 {RECORD_TTL} IN A 203.0.113.10" in zone_text
+    assert f"@ {RECORD_TTL} IN A 203.0.113.10" in zone_text
     assert "127.0.0.1" not in zone_text
 
 
@@ -106,8 +107,8 @@ def test_web_ip_defaults_to_ns_ip():
         ChunkStore(), build_zone(origin=ORIGIN, serial=1, ns_ip="203.0.113.10")
     )
 
-    assert "@ 604800 IN A 203.0.113.10" in zone_text
-    assert "ns1 604800 IN A 203.0.113.10" in zone_text
+    assert f"@ {RECORD_TTL} IN A 203.0.113.10" in zone_text
+    assert f"ns1 {RECORD_TTL} IN A 203.0.113.10" in zone_text
 
 
 def test_web_ip_can_differ_from_ns_ip():
@@ -116,8 +117,8 @@ def test_web_ip_can_differ_from_ns_ip():
         build_zone(origin=ORIGIN, serial=1, ns_ip="203.0.113.10", web_ip="198.51.100.20"),
     )
 
-    assert "@ 604800 IN A 198.51.100.20" in zone_text
-    assert "ns1 604800 IN A 203.0.113.10" in zone_text
+    assert f"@ {RECORD_TTL} IN A 198.51.100.20" in zone_text
+    assert f"ns1 {RECORD_TTL} IN A 203.0.113.10" in zone_text
 
 
 def test_differing_serial_only_changes_serial_line():

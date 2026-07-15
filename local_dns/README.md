@@ -89,6 +89,31 @@ bootstrap`), then:
   correctly — the direct test of RFC 2136 accumulation (not clobbering), the actual
   correctness property this whole design depends on.
 - **V-DU4** — confirms a wrong TSIG secret is rejected, not silently accepted.
+- **V-DU5** — publishes a real 3MB file, forcing many sequential `send_update` batches
+  (`DNS_UPDATE_BATCH_SIZE` records per RFC 2136 UPDATE message), and confirms it
+  round-trips byte-for-byte — proves the batching fix actually works against a real
+  BIND server, not just in unit tests.
+
+`main()` returns the `(file_name, pointer_hash, key)` of every file it published, so
+`verify_delete.py` (below) can delete those same records instead of publishing its own.
+
+## Running the delete verification driver
+
+```
+.venv/bin/python -m local_dns.verify_delete
+```
+
+Validates `deploy/dynamic_update.py`'s `build_delete_update`/`send_delete` against the
+same live BIND container. Rather than publish its own test files, it calls
+`verify_dynamic_update.main()` first (same zone reset, same restart) and deletes exactly
+what that published:
+
+- **V-DEL1** — confirms a still-live published record's TTL reflects the current
+  `RECORD_TTL` value.
+- **V-DEL2** — deletes every file `verify_dynamic_update` published, including the 3MB
+  one, which forces multiple sequential `send_delete` batches.
+- **V-DEL3** — confirms every deleted address (manifest + every content chunk) now
+  resolves to NXDOMAIN.
 
 **Two real, Docker-specific gotchas fixed while building this** (beyond the separate
 real-VPS bugs found during deployment):
@@ -131,15 +156,17 @@ Optional host-side convenience (needs `sudo apt install -y dnsutils`):
 dig @127.0.0.1 -p 15353 <hash>.chunks.dnsstore.test TXT +short
 ```
 
-## Checklist (V1-V7, plus V-DU1-V-DU4 for dynamic updates)
+## Checklist (V1-V7, V-DU1-V-DU5 for dynamic updates, V-DEL1-V-DEL3 for delete)
 
 1. **V1.** `docker compose -f local_dns/docker-compose.yml up -d`; confirm the zone loads
    cleanly via `logs bind9` (no error lines).
 2. **V2.** Run `.venv/bin/python -m local_dns.verify_zone` (module form, not the plain
    script path — see above); restart BIND when prompted.
 3. **V3-V6.** Handled automatically by `verify_zone.py` (see above).
-4. **V-DU1-V-DU4.** Run `.venv/bin/python -m local_dns.verify_dynamic_update` — handled
-   automatically (see "Running the dynamic-update (RFC 2136) verification driver"
-   above).
+4. **V-DEL1-V-DEL3.** Run `.venv/bin/python -m local_dns.verify_delete` — this runs
+   `verify_dynamic_update.main()` internally first (covering V-DU1-V-DU5), then runs its
+   own delete checks against exactly what got published. Running
+   `.venv/bin/python -m local_dns.verify_dynamic_update` on its own is still fine too if
+   you only want the publish-side checks, without deleting anything afterward.
 5. **V7.** `docker compose -f local_dns/docker-compose.yml down` (or `restart bind9` to
    iterate again with a freshly regenerated zone).
