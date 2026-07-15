@@ -238,9 +238,9 @@ create one from nothing. Every `publish` afterward is a direct, TSIG-signed DNS 
 message over the network — no SSH involved in the steady-state path.
 
 **Real finding, confirmed live**: `bootstrap` restarts BIND via `sudo systemctl restart
-bind9`, not `rndc reload`. Once a zone has `allow-update` configured (ours does, from
-the start), BIND flatly refuses `rndc reload` on it (`rndc: 'reload' failed: dynamic
-zone`) to protect the journal's consistency — confirmed by testing it directly against
+bind9`, not `rndc reload`. Once a zone has dynamic updates configured (ours does, from
+the start, via `update-policy`), BIND flatly refuses `rndc reload` on it (`rndc: 'reload'
+failed: dynamic zone`) to protect the journal's consistency — confirmed by testing it directly against
 the live server. A full restart re-reads the on-disk zone file regardless of dynamic
 status, and is fine here specifically because `bootstrap` only ever runs once, before
 the zone has received real traffic — a brief full outage is a non-issue for a one-time

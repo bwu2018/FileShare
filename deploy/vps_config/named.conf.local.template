@@ -1,6 +1,8 @@
 zone "<YOUR_DOMAIN>" {
     type master;
     file "/var/lib/bind/<YOUR_DOMAIN>.zone";
-    allow-update { key update-key; };
+    // Scoped to TXT records under chunks.<YOUR_DOMAIN> only -- a leaked/misused
+    // update-key still can't rewrite NS/SOA/A or anything outside that subtree.
+    update-policy { grant update-key subdomain chunks.<YOUR_DOMAIN> TXT; };
     allow-transfer { none; };
 };
