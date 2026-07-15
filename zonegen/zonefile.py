@@ -41,7 +41,16 @@ def build_zone(
     expire: int = DEFAULT_EXPIRE,
     minimum: int = DEFAULT_MINIMUM,
     ns_ip: str = "127.0.0.1",
+    web_ip: str | None = None,
 ) -> dns.zone.Zone:
+    # web_ip defaults to ns_ip: the webapp/backend are hosted on the same VPS as BIND
+    # (see deploy/vps_config/Caddyfile), so the apex `A` record and the `ns1` glue
+    # record point at the same address today. Kept as a separate parameter (not just
+    # reusing ns_ip inline) so a future split onto a different host is a one-line
+    # change here, not a rename.
+    if web_ip is None:
+        web_ip = ns_ip
+
     origin_name = dns.name.from_text(origin)
     zone = dns.zone.Zone(origin=origin_name)
 
@@ -62,11 +71,13 @@ def build_zone(
         minimum,
     )
     ns_rdata = dns.rdtypes.ANY.NS.NS(dns.rdataclass.IN, dns.rdatatype.NS, mname)
-    a_rdata = dns.rdtypes.IN.A.A(dns.rdataclass.IN, dns.rdatatype.A, ns_ip)
+    glue_a_rdata = dns.rdtypes.IN.A.A(dns.rdataclass.IN, dns.rdatatype.A, ns_ip)
+    apex_a_rdata = dns.rdtypes.IN.A.A(dns.rdataclass.IN, dns.rdatatype.A, web_ip)
 
     _add_rrset(zone, dns.rrset.from_rdata(root_name, RECORD_TTL, soa_rdata))
     _add_rrset(zone, dns.rrset.from_rdata(root_name, RECORD_TTL, ns_rdata))
-    _add_rrset(zone, dns.rrset.from_rdata(ns_name, RECORD_TTL, a_rdata))
+    _add_rrset(zone, dns.rrset.from_rdata(root_name, RECORD_TTL, apex_a_rdata))
+    _add_rrset(zone, dns.rrset.from_rdata(ns_name, RECORD_TTL, glue_a_rdata))
     return zone
 
 

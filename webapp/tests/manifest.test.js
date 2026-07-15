@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { deserializeManifest, ManifestFormatError } from '../manifest.js';
+import { deserializeManifest, serializeManifest, ManifestFormatError } from '../manifest.js';
 
 const fixtures = JSON.parse(
   readFileSync(fileURLToPath(new URL('./fixtures.json', import.meta.url)), 'utf8'),
@@ -60,4 +60,50 @@ test('deserializeManifest rejects a name_len that overruns the actual data', () 
   tampered[25] = 0xff;
   tampered[26] = 0xff;
   assert.throws(() => deserializeManifest(tampered), ManifestFormatError);
+});
+
+test('serializeManifest matches real Python-serialized manifests byte-for-byte', () => {
+  for (const expected of fixtures.manifest) {
+    const contentNonce = Uint8Array.from(Buffer.from(expected.content_nonce_b64, 'base64'));
+    const bytes = serializeManifest({
+      version: expected.version,
+      fileName: expected.file_name,
+      fileSize: expected.file_size,
+      chunkCount: expected.chunk_count,
+      contentNonce,
+    });
+    assert.equal(Buffer.from(bytes).toString('base64'), expected.serialized_b64);
+  }
+});
+
+test('serializeManifest then deserializeManifest round-trips every fixture', () => {
+  for (const expected of fixtures.manifest) {
+    const contentNonce = Uint8Array.from(Buffer.from(expected.content_nonce_b64, 'base64'));
+    const bytes = serializeManifest({
+      version: expected.version,
+      fileName: expected.file_name,
+      fileSize: expected.file_size,
+      chunkCount: expected.chunk_count,
+      contentNonce,
+    });
+    const roundTripped = deserializeManifest(bytes);
+    assert.equal(roundTripped.fileName, expected.file_name);
+    assert.equal(roundTripped.fileSize, expected.file_size);
+    assert.equal(roundTripped.chunkCount, expected.chunk_count);
+    assert.equal(Buffer.from(roundTripped.contentNonce).toString('base64'), expected.content_nonce_b64);
+  }
+});
+
+test('serializeManifest rejects a content_nonce of the wrong length', () => {
+  assert.throws(
+    () =>
+      serializeManifest({
+        version: 1,
+        fileName: 'x',
+        fileSize: 0,
+        chunkCount: 1,
+        contentNonce: new Uint8Array(5),
+      }),
+    ManifestFormatError,
+  );
 });

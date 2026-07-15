@@ -1,18 +1,18 @@
-// DOM wiring only -- form submit -> download.js's orchestration -> preview.js's
-// rendering. No logic that belongs in a pure module lives here.
+// DOM wiring only -- reads the URL fragment on load -> download.js's orchestration ->
+// preview.js's rendering. There is no manual paste-in form here at all: every
+// download is reached via a share link produced by uploadPage.js, which carries both
+// pointer_hash and key in the fragment, never the query string, so neither value is
+// ever sent to the server or written to a server access log.
 import { downloadFromDns } from './download.js';
 import { renderPreview } from './preview.js';
 import { DEFAULT_RESOLVER_URL } from './constants.js';
 
-// This webapp only ever talks to one origin -- the live deployment from Phase 5.
 const ORIGIN = 'dnsfileshare.com';
 
-// Maps download.js's error codes to short, plain user-facing text. Full detail always
-// goes to the console for debugging; on-page text stays deliberately non-technical.
 const ERROR_MESSAGES = {
-  NOT_FOUND: 'That file could not be found. Double-check the pointer hash.',
+  NOT_FOUND: 'That file could not be found. The link may be broken.',
   HASH_MISMATCH: 'That record looks corrupted or tampered with.',
-  DECRYPT_FAILED: 'Could not decrypt -- check the key, or the file data may be corrupted.',
+  DECRYPT_FAILED: "Could not decrypt -- the link may be broken, or the file data may be corrupted.",
   DnsQueryError: 'The DNS query failed. Try again in a moment.',
 };
 
@@ -45,15 +45,16 @@ function statusNode(text, className) {
   return p;
 }
 
-const form = document.getElementById('download-form');
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
+function parseFragment() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  return { pointerHash: params.get('pointer_hash'), keyB64: params.get('key') };
+}
 
-  const pointerHash = document.getElementById('pointer-hash').value.trim();
-  const keyB64 = document.getElementById('key').value.trim();
+async function run() {
+  const { pointerHash, keyB64 } = parseFragment();
 
   if (!pointerHash || !keyB64) {
-    setResult(statusNode('Enter both the pointer hash and the key.', 'error'));
+    setResult(statusNode("This link is missing its pointer hash or key.", 'error'));
     return;
   }
 
@@ -61,7 +62,7 @@ form.addEventListener('submit', async (event) => {
   try {
     keyBytes = base64ToBytes(keyB64);
   } catch (e) {
-    setResult(statusNode("The key doesn't look like valid base64.", 'error'));
+    setResult(statusNode("This link's key doesn't look like valid base64.", 'error'));
     console.error(e);
     return;
   }
@@ -69,10 +70,17 @@ form.addEventListener('submit', async (event) => {
   setResult(statusNode('Resolving and decrypting…', 'status'));
 
   try {
-    const { fileName, plaintext } = await downloadFromDns(ORIGIN, pointerHash, keyBytes, DEFAULT_RESOLVER_URL);
+    const { fileName, plaintext } = await downloadFromDns(
+      ORIGIN,
+      pointerHash,
+      keyBytes,
+      DEFAULT_RESOLVER_URL,
+    );
     setResult(renderPreview(fileName, plaintext));
   } catch (e) {
     setResult(statusNode(messageFor(e), 'error'));
     console.error(e);
   }
-});
+}
+
+run();

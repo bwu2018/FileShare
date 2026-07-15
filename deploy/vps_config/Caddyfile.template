@@ -1,0 +1,15 @@
+# Caddy serves the static webapp directly (not proxied through the backend) so a
+# crash/redeploy of the upload backend can never take down the ability to load the
+# page and download an already-shared file -- see deploy/README.md's "Web hosting"
+# section for the full reasoning. Automatic HTTPS (Let's Encrypt) needs no extra
+# config beyond the domain name itself.
+<YOUR_DOMAIN> {
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+
+    handle {
+        root * /var/www/dnsfileshare/webapp
+        file_server
+    }
+}

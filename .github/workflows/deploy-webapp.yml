@@ -1,0 +1,34 @@
+name: Deploy webapp to VPS
+
+# Replaces the earlier GitHub Pages workflow -- the webapp is now served by Caddy on
+# the same VPS as the backend and BIND (see deploy/README.md's "Web hosting" section),
+# so this pushes the static files directly instead of deploying to Pages.
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["webapp/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Push webapp/ to the VPS web root
+        # --delete removes files on the remote that no longer exist locally (e.g. a
+        # renamed/retired page script), matching the pattern deploy/remote.py's own
+        # push_zone_file uses for zone files. No Caddy reload needed afterward --
+        # file_server reads from disk on every request, no caching layer in front.
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.DEPLOY_SSH_PORT || 22 }}" \
+            webapp/ "${{ secrets.DEPLOY_SSH_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_WEB_ROOT }}"

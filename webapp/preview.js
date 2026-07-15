@@ -16,7 +16,7 @@ const EXTENSION_MIME_MAP = {
   svg: 'image/svg+xml',
 };
 
-function extensionOf(fileName) {
+export function extensionOf(fileName) {
   const idx = fileName.lastIndexOf('.');
   if (idx <= 0 || idx === fileName.length - 1) return null;
   return fileName.slice(idx + 1).toLowerCase();
@@ -45,7 +45,9 @@ export function renderPreview(fileName, bytes) {
   } else {
     const note = document.createElement('p');
     note.className = 'preview-unsupported';
-    note.textContent = `No preview available for "${fileName}" -- download to view.`;
+    note.textContent =
+      `No preview available for "${fileName}" -- supported preview types are text ` +
+      'and images. Download to view.';
     container.appendChild(note);
   }
 

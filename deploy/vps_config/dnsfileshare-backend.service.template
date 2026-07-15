@@ -1,0 +1,34 @@
+[Unit]
+Description=dnsfileshare upload backend (gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=dnsfileshare-backend
+Group=dnsfileshare-backend
+WorkingDirectory=/opt/dnsfileshare
+EnvironmentFile=/etc/dnsfileshare/backend.env
+# --workers 1 is not a performance tuning knob here -- it's required correctness:
+# backend/ratelimit.py's RateLimiter is an in-memory, per-process counter, so more
+# than one worker would each keep independent counts and silently multiply the
+# effective rate limit. See backend/README.md.
+ExecStart=/opt/dnsfileshare/.venv/bin/gunicorn --workers 1 --bind 127.0.0.1:8000 backend.wsgi:app
+Restart=on-failure
+RestartSec=2
+
+# This VPS also runs BIND (the one durable copy of every published file) -- these
+# caps keep a bug or abuse in the backend from starving it, not a tuned performance
+# target.
+MemoryMax=256M
+CPUQuota=50%
+
+# Least-privilege hardening -- a dedicated unprivileged user, distinct from both
+# `bind` and `deploy` (see deploy/README.md), with no access to BIND's zone/TSIG
+# files beyond the DNSSTORE_TSIG_SECRET value in its own EnvironmentFile.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

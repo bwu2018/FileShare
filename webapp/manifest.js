@@ -7,10 +7,43 @@
 //   [13:25]  content_nonce 12 raw bytes
 //   [25:27]  name_len      uint16 BE
 //   [27:27+name_len]  file_name, UTF-8
-const MANIFEST_HEADER_SIZE = 25;
-const MANIFEST_VERSION = 1;
+import { NONCE_SIZE } from './constants.js';
+
+export const MANIFEST_HEADER_SIZE = 25;
+export const MANIFEST_VERSION = 1;
 
 export class ManifestFormatError extends Error {}
+
+// Mirrors manifest/serialization.py::serialize_manifest's exact byte layout (see the
+// header comment above for the full field-by-field breakdown).
+export function serializeManifest({ version, fileName, fileSize, chunkCount, contentNonce }) {
+  if (contentNonce.length !== NONCE_SIZE) {
+    throw new ManifestFormatError(
+      `content_nonce has length ${contentNonce.length}, expected ${NONCE_SIZE}`,
+    );
+  }
+
+  const nameBytes = new TextEncoder().encode(fileName);
+  if (nameBytes.length > 0xffff) {
+    throw new ManifestFormatError(
+      `file_name encodes to ${nameBytes.length} bytes, exceeds uint16 max`,
+    );
+  }
+
+  const totalLength = MANIFEST_HEADER_SIZE + 2 + nameBytes.length;
+  const buffer = new ArrayBuffer(totalLength);
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+
+  view.setUint8(0, version);
+  view.setBigUint64(1, BigInt(fileSize), false);
+  view.setUint32(9, chunkCount, false);
+  bytes.set(contentNonce, 13);
+  view.setUint16(25, nameBytes.length, false);
+  bytes.set(nameBytes, 27);
+
+  return bytes;
+}
 
 export function deserializeManifest(bytes) {
   const prefixSize = MANIFEST_HEADER_SIZE + 2; // +2 for the name_len field itself

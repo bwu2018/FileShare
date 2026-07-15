@@ -17,7 +17,7 @@ def _zone(serial: int = 2026071201, ns_ip: str = "127.0.0.1") -> dns.zone.Zone:
     return build_zone(origin=ORIGIN, serial=serial, ns_ip=ns_ip)
 
 
-HEADER_LINE_COUNT = 4  # $ORIGIN, SOA, NS, glue A
+HEADER_LINE_COUNT = 5  # $ORIGIN, SOA, NS, apex A, glue A
 
 
 def _record_lines(zone_text: str) -> list[str]:
@@ -73,6 +73,7 @@ def test_header_contains_configured_fields():
     assert "604800" in zone_text
     assert "IN SOA ns1 admin" in zone_text
     assert "IN NS ns1" in zone_text
+    assert "@ 604800 IN A 127.0.0.1" in zone_text
     assert "ns1 604800 IN A 127.0.0.1" in zone_text
 
 
@@ -96,7 +97,27 @@ def test_custom_ns_ip_is_honored():
     zone_text = generate_zone_file(ChunkStore(), _zone(serial=1, ns_ip="203.0.113.10"))
 
     assert "ns1 604800 IN A 203.0.113.10" in zone_text
+    assert "@ 604800 IN A 203.0.113.10" in zone_text
     assert "127.0.0.1" not in zone_text
+
+
+def test_web_ip_defaults_to_ns_ip():
+    zone_text = generate_zone_file(
+        ChunkStore(), build_zone(origin=ORIGIN, serial=1, ns_ip="203.0.113.10")
+    )
+
+    assert "@ 604800 IN A 203.0.113.10" in zone_text
+    assert "ns1 604800 IN A 203.0.113.10" in zone_text
+
+
+def test_web_ip_can_differ_from_ns_ip():
+    zone_text = generate_zone_file(
+        ChunkStore(),
+        build_zone(origin=ORIGIN, serial=1, ns_ip="203.0.113.10", web_ip="198.51.100.20"),
+    )
+
+    assert "@ 604800 IN A 198.51.100.20" in zone_text
+    assert "ns1 604800 IN A 203.0.113.10" in zone_text
 
 
 def test_differing_serial_only_changes_serial_line():

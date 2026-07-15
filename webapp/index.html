@@ -2,31 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>dnsfileshare downloader</title>
+  <title>dnsfileshare</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main>
-    <h1>dnsfileshare downloader</h1>
+    <h1>dnsfileshare</h1>
     <p class="subtitle">
-      Paste a pointer hash and key to fetch and decrypt a file directly from DNS. Your
-      browser queries public DNS resolvers and decrypts locally -- nothing is sent to
-      any server of ours, and no server of ours ever sees the key or the file.
+      Upload a file to share it over DNS. Your browser encrypts it and does all the
+      chunking and hashing locally -- nothing is sent to any server of ours in
+      plaintext, and no server of ours ever sees the decryption key. You'll get a link
+      back; anyone with that link can view and download the file. There's no way to
+      delete a published file once it's shared, so only upload what you're comfortable
+      leaving public indefinitely.
     </p>
 
-    <form id="download-form">
-      <label for="pointer-hash">Pointer hash</label>
-      <input id="pointer-hash" name="pointer-hash" type="text" autocomplete="off" spellcheck="false" required>
+    <form id="upload-form">
+      <label for="file-input">File</label>
+      <input id="file-input" name="file-input" type="file" required>
 
-      <label for="key">Key (base64)</label>
-      <input id="key" name="key" type="text" autocomplete="off" spellcheck="false" required>
+      <label for="file-name">File name (optional override)</label>
+      <input id="file-name" name="file-name" type="text" autocomplete="off" spellcheck="false" placeholder="Uses the file's own name if left blank -- must include an extension">
 
-      <button type="submit">View File</button>
+      <button type="submit">Upload</button>
     </form>
 
     <div id="result"></div>
   </main>
-  <script type="module" src="main.js"></script>
+  <script type="module" src="uploadPage.js"></script>
 </body>
 </html>

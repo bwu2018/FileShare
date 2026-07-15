@@ -118,6 +118,73 @@ for durability; AppArmor silently blocks this even when standard Unix permission
 `/var/lib/bind/` is one of the paths Ubuntu's default profile already permits read-write,
 sidestepping the issue rather than requiring a custom AppArmor profile edit.
 
+## Web hosting (webapp + backend)
+
+The static webapp and the upload backend (`backend/`) run on this same VPS, fronted
+by Caddy -- not a second host. Reasoning: Caddy is a single lightweight binary with
+negligible idle footprint, and isolating the backend at the systemd level (dedicated
+unprivileged user, `MemoryMax`/`CPUQuota` limits) gives real containment without a
+second box to pay for/maintain. Caddy serves the static webapp files *directly*
+(never proxied through the backend), so a crash or redeploy of the upload backend
+can never take down the ability to load the page and download an already-shared
+file -- downloading must stay resilient and backend-independent, matching this
+project's existing design philosophy for the read path.
+
+1. **Open two more ports at both firewall layers** (the same two-layer discipline
+   already used for port 53 above): `80/tcp` and `443/tcp`, at the Oracle Cloud
+   Security List (ingress, `0.0.0.0/0`, stateful) *and* the guest-OS iptables chain:
+   ```
+   sudo iptables -I INPUT <n> -p tcp --dport 80 -j ACCEPT
+   sudo iptables -I INPUT <n+1> -p tcp --dport 443 -j ACCEPT
+   sudo iptables -L INPUT -n -v --line-numbers   # confirm order: ACCEPT rules above REJECT
+   sudo netfilter-persistent save               # re-persist (iptables-persistent already installed above)
+   ```
+2. **Install Caddy** (see Caddy's own install docs for the current recommended apt
+   repository setup for your Ubuntu release).
+3. **Deploy the static webapp files** to `/var/www/dnsfileshare/webapp` (path assumed
+   by `Caddyfile.template` below) -- see the retired-Pages workflow's replacement
+   step for how this gets pushed on every push to `main`.
+4. **Write `/etc/caddy/Caddyfile`** from `Caddyfile.template` in this directory,
+   substituting your real domain for `<YOUR_DOMAIN>`. `sudo systemctl reload caddy`
+   (or `restart` the first time) -- Caddy requests and renews its own Let's Encrypt
+   certificate automatically from this config alone, no separate certbot step.
+5. **Install the backend**: create the dedicated user, a Python venv under
+   `/opt/dnsfileshare`, and an env file with the same `DNSSTORE_*` variables as
+   "Configuration" below at `/etc/dnsfileshare/backend.env` (`chmod 600`, owned by
+   the dedicated user):
+   ```
+   sudo adduser --system --group --no-create-home dnsfileshare-backend
+   sudo mkdir -p /opt/dnsfileshare /etc/dnsfileshare
+   # ... deploy this repo's code + a venv with `pip install -r requirements.txt` under /opt/dnsfileshare ...
+   sudo chown -R dnsfileshare-backend:dnsfileshare-backend /opt/dnsfileshare
+   sudo chmod 600 /etc/dnsfileshare/backend.env
+   ```
+6. **Write `/etc/systemd/system/dnsfileshare-backend.service`** from
+   `dnsfileshare-backend.service.template` in this directory (no placeholders --
+   paths/user already match steps above).
+   ```
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now dnsfileshare-backend
+   sudo systemctl status dnsfileshare-backend   # confirm active (running)
+   ```
+7. **Add the apex `A` record** so the domain itself resolves to this VPS (in
+   addition to the existing `ns1` glue record) -- `zonegen.zonefile.build_zone`'s
+   `web_ip` parameter defaults to `ns_ip`, so no code change is needed here; this is
+   picked up automatically the next time `deploy.cli bootstrap` writes the zone.
+8. **Grant the existing `deploy` SSH user write access to the web root**, so the
+   same SSH credentials/user work for both zone-file and webapp pushes (no second
+   SSH identity to manage):
+   ```
+   sudo mkdir -p /var/www/dnsfileshare/webapp
+   sudo chown deploy:deploy /var/www/dnsfileshare/webapp
+   ```
+9. **Set the `.github/workflows/deploy-webapp.yml` GitHub Actions secrets**:
+   `DEPLOY_HOST` (the VPS's public IP), `DEPLOY_SSH_USER` (`deploy`),
+   `DEPLOY_SSH_KEY` (the `deploy` user's private key), `DEPLOY_SSH_PORT` (optional,
+   default 22), `DEPLOY_WEB_ROOT` (`/var/www/dnsfileshare/webapp`). This replaces
+   the retired GitHub Pages deployment -- pushing `webapp/` changes to `main` now
+   `rsync`s straight to the VPS instead.
+
 ## Domain delegation
 
 1. Register your domain at any registrar.
