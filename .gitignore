@@ -3,4 +3,5 @@
 .pytest_cache/
 __pycache__/
 local_dns/zones/*.zone
-e2e/
+e2e/fixtures/
+e2e/README.md

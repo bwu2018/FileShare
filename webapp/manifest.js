@@ -1,6 +1,6 @@
 // Mirrors manifest/serialization.py::deserialize_manifest's CURRENT byte layout --
-// confirmed directly against that file's source, not the superseded phase2.md
-// description (no root_hash field; header is 25 bytes, not 81):
+// confirmed directly against that file's source (no root_hash field; header is
+// 25 bytes, not 81):
 //   [0]      version       uint8
 //   [1:9]    file_size     uint64 BE
 //   [9:13]   chunk_count   uint32 BE

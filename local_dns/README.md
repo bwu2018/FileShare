@@ -43,9 +43,9 @@ reload configured (`rndc` isn't set up), so always `restart bind9` after regener
 This builds an in-memory store with a few small content chunks plus one manifest
 record with a deliberately long `file_name` (up to the 65,535-byte UTF-8 cap
 `manifest/serialization.py` enforces), producing at least one large, multi-string TXT
-record — since removing the index tree (chunk addressing moved to `hash(nonce+i)`,
-see `CLAUDE.md`'s addressing revision) left `file_name` as the only field that can
-still force a large record. It writes `zones/dnsstore.test.zone`, then pauses for you
+record — since chunk addressing is `hash(nonce+i)`-based rather than an index tree,
+`file_name` is the only field that can still force a large record. It writes
+`zones/dnsstore.test.zone`, then pauses for you
 to restart BIND, then runs four checks against the live server:
 
 - **V3** — a small content-chunk record round-trips correctly over DNS.

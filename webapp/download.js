@@ -109,7 +109,7 @@ export async function downloadFromDns(origin, pointerHash, keyBytes, resolverUrl
   const ciphertext = joinChunksInOrder(chunkResults);
 
   // 8: final decrypt -- the authoritative integrity check (mirrors DecryptionError
-  // being the "ultimate authority" per phase1.md's error-handling design). Deliberately
+  // being the ultimate authority in core's error-handling design). Deliberately
   // doesn't distinguish "wrong key" from "corrupted chunk data" -- same ambiguity the
   // Python side already accepts.
   let plaintext;
